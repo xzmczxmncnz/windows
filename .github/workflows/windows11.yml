@@ -25,7 +25,7 @@ jobs:
     - name: 4. Chay Cloudflare Tunnel
       run: |
         # Chạy tunnel trực tiếp không cần login
-        Start-Process cloudflared -ArgumentList "tunnel --url rdp://localhost:3389 --logfile cloudflare.log"
+        Start-Process ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389"
         echo "Dang khoi tao Tunnel (30 giay)..."
         Start-Sleep -s 30
 
