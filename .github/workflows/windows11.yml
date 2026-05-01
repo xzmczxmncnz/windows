@@ -7,7 +7,7 @@ jobs:
     timeout-minutes: 360
     steps:
     - name: 1. Tai Cloudflared truc tiep
-      # Thay the choco bang curl de tranh loi Gateway Timeout nhu trong anh image_b751b8.png
+      # Tai truc tiep tu GitHub de tranh loi 504 Gateway Timeout cua Chocolatey
       run: |
         curl -L --output cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
 
@@ -16,22 +16,28 @@ jobs:
         net user runneradmin YourPassword123
         echo "Mat khau: YourPassword123"
 
-    - name: 3. Bat Remote Desktop (RDP)
+    - name: 3. Cau hinh RDP chuyen sau
       run: |
+        # Cho phep Remote Desktop
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        
+        # TAT NLA (Network Level Authentication) - Quan trong de Remmina/Linux ket noi duoc
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+        
+        # Khoi dong dich vu TermService
+        Set-Service TermService -StartupType Automatic
+        Start-Service TermService -ErrorAction SilentlyContinue
 
     - name: 4. Chay Cloudflare Tunnel
       run: |
-        # Su dung .\cloudflared.exe vi file da duoc tai ve thu muc hien tai
-        # Chuyen huong Error vi Cloudflare ghi thong tin khoi tao vao Standard Error
+        # Chay tunnel va ghi log vao cloudflare.log
         Start-Process ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardError "cloudflare.log"
-        echo "Dang khoi tao Tunnel (30 giay)..."
-        Start-Sleep -s 30
+        echo "Dang doi RDP va Tunnel san sang (60 giay)..."
+        Start-Sleep -s 60
 
     - name: 5. Lay link ket noi
       run: |
-        # Quet file log de tim link trycloudflare
         $link = Get-Content cloudflare.log | Select-String -Pattern "https://[a-z0-9-.]*trycloudflare.com" | ForEach-Object { $_.Matches.Value }
         
         if ($link) {
@@ -41,12 +47,15 @@ jobs:
           echo "USER: runneradmin"
           echo "PASSWORD: YourPassword123"
           echo "=============================================="
+          echo "Lenh tai may Linux cua ban:"
+          echo "cloudflared access rdp --hostname $($link.Replace('https://', '')) --listener localhost:8888"
+          echo "=============================================="
         } else {
-          echo "KHONG TIM THAY LINK! Kiem tra noi dung log duoi day:"
+          echo "KHONG TIM THAY LINK! Xem log duoi day:"
           Get-Content cloudflare.log
         }
 
     - name: 6. Giu phien chay
       run: |
-        echo "May ao dang chay... Nhan 'Stop job' tren GitHub de dung."
+        echo "May ao dang hoat dong. Hay ket noi qua Remmina toi 127.0.0.1:8888"
         while($true) { Start-Sleep -s 60 }
