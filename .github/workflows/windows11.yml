@@ -6,8 +6,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 360
     steps:
-    - name: 1. Cai dat Cloudflared
-      run: choco install cloudflared
+    - name: 1. Tai Cloudflared truc tiep
+      # Thay the choco bang curl de tranh loi Gateway Timeout nhu trong anh image_b751b8.png
+      run: |
+        curl -L --output cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
 
     - name: 2. Dat mat khau cho May ao
       run: |
@@ -20,17 +22,17 @@ jobs:
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
     - name: 4. Chay Cloudflare Tunnel
-      shell: pwsh
       run: |
-        # Chạy tunnel và ghi log vào file cloudflare.log
-        Start-Process cloudflared -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "cloudflare.log" -RedirectStandardError "cloudflare.err"
+        # Su dung .\cloudflared.exe vi file da duoc tai ve thu muc hien tai
+        # Chuyen huong Error vi Cloudflare ghi thong tin khoi tao vao Standard Error
+        Start-Process ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardError "cloudflare.log"
         echo "Dang khoi tao Tunnel (30 giay)..."
         Start-Sleep -s 30
 
     - name: 5. Lay link ket noi
       run: |
-        # Đọc file err hoặc log (cloudflared thường ghi log khởi tạo vào stderr)
-        $link = Get-Content cloudflare.err, cloudflare.log -ErrorAction SilentlyContinue | Select-String -Pattern "https://[a-z0-9-.]*trycloudflare.com" | ForEach-Object { $_.Matches.Value }
+        # Quet file log de tim link trycloudflare
+        $link = Get-Content cloudflare.log | Select-String -Pattern "https://[a-z0-9-.]*trycloudflare.com" | ForEach-Object { $_.Matches.Value }
         
         if ($link) {
           echo "=============================================="
@@ -40,9 +42,11 @@ jobs:
           echo "PASSWORD: YourPassword123"
           echo "=============================================="
         } else {
-          echo "Khong tim thay link. Kiem tra lai log!"
-          Get-Content cloudflare.err
+          echo "KHONG TIM THAY LINK! Kiem tra noi dung log duoi day:"
+          Get-Content cloudflare.log
         }
 
     - name: 6. Giu phien chay
-      run: while($true) { Start-Sleep -s 60 }
+      run: |
+        echo "May ao dang chay... Nhan 'Stop job' tren GitHub de dung."
+        while($true) { Start-Sleep -s 60 }
